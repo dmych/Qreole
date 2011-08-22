@@ -8,11 +8,11 @@ from editor import EditWindow
 from browser import BrowserWindow
 from utils import SimpleConfig
 
-VERSION = '0.1'
+VERSION = '0.2'
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
-	self.config = SimpleConfig('~/.creolewiki')
+	self.config = SimpleConfig('~/.qreolerc')
 	QMainWindow.__init__(self)
 	uic.loadUi("main.ui", self)
 	self.connect(self.action_Exit, SIGNAL("triggered()"),
@@ -35,6 +35,12 @@ class MainWindow(QMainWindow):
 	print self.notesDir, self.homePage
 	self.Browser.setSearchPaths(['.', self.notesDir, self.config.readStr('ImageDir')])
 	self.open(self.homePage)
+
+    def updateTitle(self):
+	title = 'Qreole %s' % VERSION
+	if self.currentNote:
+	    title += ' - %s' % self.currentNote
+	self.setWindowTitle(title)
 
     def showAboutBox(self):
         QMessageBox.about(self, "About",
@@ -93,6 +99,7 @@ class MainWindow(QMainWindow):
 	    html = creole2html.render(txt).decode('utf-8')
 #	    self.TMP_SaveHtml(html)
 	    self.Browser.setHtml(html)
+	    self.updateTitle()
 
     def save(self, txt):
 	f = open(self._getFileName(), 'w')
@@ -100,7 +107,7 @@ class MainWindow(QMainWindow):
 	f.close()
 
     def editNote(self):
-	dlg = EditWindow()
+	dlg = EditWindow(self.currentNote)
 	txt = self._getText()
 	if txt:
 	    dlg.TextEditor.setPlainText(txt)

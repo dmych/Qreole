@@ -7,6 +7,7 @@ class BrowserWindow(QDialog):
     def __init__(self, NotesPath, parent=None):
 	QDialog.__init__(self)
 	uic.loadUi("browser.ui", self)
+	self.setWindowTitle('Wiki Browser')
 	self.buttonOpen = QPushButton("&Open file");
 	self.buttonOpen.setDefault(True)
 	self.buttonNewFile = QPushButton("&New file");
