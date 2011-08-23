@@ -63,9 +63,9 @@ class MainWindow(QMainWindow):
     
     def browseNotes(self):
 	print "BROWSE"
-	dlg = BrowserWindow(self.notesDir)
+	dlg = BrowserWindow(self.notesDir, self.currentDir, self)
 	if dlg.exec_():
-	    fileName = unicode(dlg.fileName())
+	    fileName = dlg.fileName()
 	    print '    SELECTED:', repr(fileName)
 	    self.open(os.path.splitext(fileName)[0])
 
@@ -93,7 +93,7 @@ class MainWindow(QMainWindow):
 	if fileName:
 	    self.currentNote = fileName
 	txt = self._getText()
-	if txt is None:		# new note
+	if not txt:		# new note
 	    self.editNote()
 	else:
 	    html = creole2html.render(txt).decode('utf-8')
