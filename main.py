@@ -8,7 +8,7 @@ from editor import EditWindow
 from browser import BrowserWindow
 from utils import SimpleConfig
 
-VERSION = '0.2'
+VERSION = '0.3'
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
@@ -27,14 +27,57 @@ class MainWindow(QMainWindow):
 		     self.editNote)
 	self.connect(self.actionHome, SIGNAL("triggered()"),
 		     self.goHome)
+	self.connect(self.action_Back, SIGNAL("triggered()"),
+		     self.goBack)
+	self.connect(self.action_Refresh, SIGNAL("triggered()"),
+		     self.reloadNote)
 	self.notesDir = self.config.readStr('WikiDir')
-	self.currentDir = ''
+	if self.notesDir.endswith('/'):
+	    self.notesDir = self.notesDir[:-1]
+	self.history = list()
+	self._currentFile = None
 	self.homePage = self.config.readStr('HomePage')
 	if not self.homePage.startswith('/'):
 	    self.homePage = '/' + self.homePage
 	print self.notesDir, self.homePage
 	self.Browser.setSearchPaths(['.', self.notesDir, self.config.readStr('ImageDir')])
-	self.open(self.homePage)
+	self.goHome()
+
+    def get_currentNote(self):
+	if self._currentFile:
+	    value = self._currentFile[len(self.notesDir):]
+	    print '**** CURRENTNOTE:', value
+	    return value
+	else:
+	    return None
+
+    def get_fileName(self):
+	if self._currentFile:
+	    return self._currentFile + '.txt'
+
+    fileName = property(get_fileName)
+
+    def set_currentNote(self, value):
+	if value.startswith('/'):
+	    value = os.path.join(self.notesDir, value[1:])
+	else:
+	    value = os.path.realpath(os.path.join(self.currentDir, value))
+	self._currentFile = value
+	print '**** CURRENTFILE SET:', self._currentFile
+
+    currentNote = property(get_currentNote, set_currentNote)
+
+    def get_currentDir(self):
+	path = os.path.split(self._currentFile)[0]
+	return path
+
+    currentDir = property(get_currentDir)
+
+    def _getText(self):
+	try:
+	    return open(self.fileName, 'r').read().decode('utf-8')
+	except IOError:
+	    return None
 
     def updateTitle(self):
 	title = 'Qreole %s' % VERSION
@@ -49,18 +92,6 @@ class MainWindow(QMainWindow):
 <p>Version %s</p>
 <p>&copy; Dmitri Brechalov, 2011</p>""" % VERSION)
 
-    def _getFileName(self):
-	if self.currentNote.startswith('/'):
-	    path = os.path.join(self.notesDir, self.currentNote[1:])
-	else:
-	    path = os.path.realpath(os.path.join(self.notesDir, self.currentDir, self.currentNote))
-	self.currentDir = os.path.dirname(path)
-	self.currentNote = os.path.basename(path)
-	print 'PATH:', path
-	print 'DIR:', self.currentDir
-	print 'NOTE:', self.currentNote
-	return  path + '.txt'
-    
     def browseNotes(self):
 	print "BROWSE"
 	dlg = BrowserWindow(self.notesDir, self.currentDir, self)
@@ -70,26 +101,32 @@ class MainWindow(QMainWindow):
 	    self.open(os.path.splitext(fileName)[0])
 
     def followLink(self, link):
-	self.currentNote = unicode(link.toString())
-	print 'CLICKED:', self.currentNote
-	self.open()
+	note = unicode(link.toString())
+	print 'CLICKED:', note
+	self.open(note)
 
-    def _getText(self):
+    def goHome(self):
+	self.open(self.homePage)
+
+    def goBack(self):
+	print 'BACK:'
 	try:
-	    return open(self._getFileName(), 'r').read().decode('utf-8')
-	except IOError:
-	    return None
+	    last = self.history.pop()
+	except IndexError:
+	    return
+	print '     ', last
+	self.open(last, True)
 
-    def TMP_SaveHtml(self, html):
-	if self.currentNote.startswith('/'):
-	    path = os.path.join(self.notesDir, self.currentNote[1:])
-	else:
-	    path = os.path.realpath(os.path.join(self.notesDir, self.currentDir, self.currentNote))
-	f = open(path + '.html', 'w')
-	f.write(html.encode('utf-8'))
-	f.close()
+    def reloadNote(self):
+	self.open(back=True)
 
-    def open(self, fileName=None):
+    def open(self, fileName=None, back=False):
+	print '=== OPEN'
+	if self.currentNote and not back:
+	    if (not self.history) or (self.history and self.history[-1] != self.currentNote):
+		self.history.append(self.currentNote)
+	print 'HISTORY:'
+	print '   ', '\n    '.join(self.history)
 	if fileName:
 	    self.currentNote = fileName
 	txt = self._getText()
@@ -102,7 +139,7 @@ class MainWindow(QMainWindow):
 	    self.updateTitle()
 
     def save(self, txt):
-	f = open(self._getFileName(), 'w')
+	f = open(self.fileName, 'w')
 	f.write(txt)
 	f.close()
 
@@ -117,5 +154,12 @@ class MainWindow(QMainWindow):
 	    self.save(txt)
 	    self.open()
 
-    def goHome(self):
-	self.open(self.homePage)
+    def TMP_SaveHtml(self, html):
+	if self.currentNote.startswith('/'):
+	    path = os.path.join(self.notesDir, self.currentNote[1:])
+	else:
+	    path = os.path.realpath(os.path.join(self.notesDir, self.currentDir, self.currentNote))
+	f = open(path + '.html', 'w')
+	f.write(html.encode('utf-8'))
+	f.close()
+
